@@ -3,7 +3,7 @@ package org.foo.modules.jexperience.redirectbyinterest.filters;
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
-import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.unomi.api.ContextRequest;
 import org.apache.unomi.api.CustomItem;
 import org.foo.modules.jexperience.redirectbyinterest.utils.RequestUtils;
@@ -83,15 +83,15 @@ public class HomePageRedirectionFilter extends AbstractServletFilter {
             JCRSessionWrapper jcrSessionWrapper = jcrSessionFactory.getCurrentUserSession();
             JCRSiteNode siteNode = jahiaSitesService.getSiteByKey(siteKey, jcrSessionWrapper);
             String language = RequestUtils.resolveLanguage(httpServletRequest, siteNode, jcrSessionWrapper.getUserNode(), false);
-            List<String> interests = getProfileInterests(httpServletRequest, siteKey);
+            String interest = getProfileInterests(httpServletRequest, siteKey);
             String redirectionPath = siteNode.getHome().getPath();
-            if (CollectionUtils.isEmpty(interests) && siteNode.isNodeType("foomix:redirectionOptions") && siteNode.hasProperty("defaultHomePage")) {
+            if (StringUtils.isEmpty(interest) && siteNode.isNodeType("foomix:redirectionOptions") && siteNode.hasProperty("defaultHomePage")) {
                 redirectionPath = ((JCRNodeWrapper) siteNode.getProperty("defaultHomePage").getNode()).getPath();
-            } else if (CollectionUtils.isNotEmpty(interests)) {
+            } else if (StringUtils.isNotEmpty(interest)) {
                 JCRNodeIteratorWrapper it = jcrSessionWrapper.getWorkspace().getQueryManager().createQuery(
                         "SELECT * FROM [foomix:tagByInterest] WHERE " +
                                 "ISDESCENDANTNODE('" + siteNode.getPath() + "') " +
-                                "AND interests = '" + interests.get(0) + "'", Query.JCR_SQL2).execute().getNodes();
+                                "AND interests = '" + interest + "'", Query.JCR_SQL2).execute().getNodes();
                 if (it.hasNext()) {
                     redirectionPath = ((JCRNodeWrapper) it.nextNode()).getPath();
                 }
@@ -108,7 +108,7 @@ public class HomePageRedirectionFilter extends AbstractServletFilter {
         filterChain.doFilter(servletRequest, servletResponse);
     }
 
-    private List<String> getProfileInterests(HttpServletRequest httpServletRequest, String siteKey) {
+    private String getProfileInterests(HttpServletRequest httpServletRequest, String siteKey) {
         try {
             Cookie[] cookies = httpServletRequest.getCookies();
             String profileId = null;
@@ -149,12 +149,18 @@ public class HomePageRedirectionFilter extends AbstractServletFilter {
                 return null;
             }
             JSONObject interestsJson = profileProperties.getJSONObject("interests");
-            List<String> interests = new ArrayList<>();
             Iterator<String> it = interestsJson.keys();
+            Map<String, Integer> interestsByWeight = new LinkedHashMap<>();
+            String interest;
             while (it.hasNext()) {
-                interests.add(it.next());
+                interest = it.next();
+                interestsByWeight.put(interest, (Integer) interestsJson.get(interest));
             }
-            return interests;
+
+            Map<String, Integer> interestsByWeightSorted = new LinkedHashMap<>();
+            interestsByWeight.entrySet().stream().sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                    .forEachOrdered(x -> interestsByWeightSorted.put(x.getKey(), x.getValue()));
+            return interestsByWeightSorted.keySet().stream().findFirst().orElse(null);
         } catch (IOException | InterruptedException | ExecutionException | JSONException e) {
             logger.error("", e);
         }

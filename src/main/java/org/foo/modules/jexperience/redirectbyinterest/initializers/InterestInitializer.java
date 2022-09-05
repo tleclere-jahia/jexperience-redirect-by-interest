@@ -58,7 +58,7 @@ public class InterestInitializer implements ModuleChoiceListInitializer {
                         propertyValues = Arrays.asList(interest.getValues());
                         if (CollectionUtils.isNotEmpty(propertyValues)) {
                             for (Value propertyValue : propertyValues) {
-                                innerInterests.add(StringUtils.substringBefore(propertyValue.getString(), ":"));
+                                innerInterests.add(StringUtils.substringBetween(propertyValue.getString(), "redirect-", ":"));
                             }
                         }
                     }

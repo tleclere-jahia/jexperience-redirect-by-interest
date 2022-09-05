@@ -1,2 +1,13 @@
+<foomix = 'http://www.foo.org/jahia/mix/1.0'>
+<foont = 'http://www.foo.org/jahia/nt/1.0'>
 <jnt = 'http://www.jahia.org/jahia/nt/1.0'>
 <jmix = 'http://www.jahia.org/jahia/mix/1.0'>
+
+[foomix:tagByInterest] mixin
+ extends = jmix:mainResource, jnt:page
+ - interests (string, choicelist[interests]) multiple mandatory
+
+[foomix:redirectionOptions] mixin
+ extends = jnt:virtualsite
+ - defaultHomePage (weakreference, picker[type='page']) < 'jnt:page'
+
